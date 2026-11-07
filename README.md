@@ -44,46 +44,44 @@ python main.py unpack-parts "MyGameBackup.part0001.zip" -d "C:\Games\RestoredGam
 
 ---
 
-## 🗂️ 7-Zip Style Windows Integration
+## 🗂️ Windows Explorer Integration (7-Zip & WinRAR Style)
 
-Unziper integrates seamlessly with Windows Explorer just like 7-Zip, featuring both a right-click context menu and the iconic 7-Zip progress modal.
+Unziper integrates seamlessly into Windows Explorer as a clean cascading submenu:
 
-### 1. One-Click Right-Click Context Menu
-Run this once to add Unziper directly to your Windows Explorer context menu (no admin rights needed):
+```text
+Unziper  >
+    ├── Extract files...       (Opens clean minimal dialog)
+    ├── Extract Here           (Extracts directly to current folder)
+    └── Extract to folder      (Extracts to <ArchiveName>\)
+```
+
+Run this once to register (no administrator rights needed):
 ```powershell
 python register_context_menu.py
 ```
-*(To remove it later, run `python register_context_menu.py --remove`)*
-
-Now, right-clicking on any `.zip` or game archive gives you:
-- **Extract with Unziper (Zero-Waste)** $\rightarrow$ extracts to `<ArchiveName>\`
-- **Extract Here (Unziper Zero-Waste)** $\rightarrow$ extracts directly to the current directory
-- Right-clicking any folder gives: **Unziper: Compress to Self-Deleting Parts**
-
-### 2. 7-Zip Style Progress Dialog
-When extraction starts, a compact, clean window appears showing:
-- **Elapsed Time & Remaining ETA**
-- **Transfer Speed (MB/s)**
-- **Files Processed Counter**
-- **Live Reclaimed Space Counter** (watch your disk space get freed in real-time)
-- **Background**, **Pause / Resume**, and **Cancel** controls
-- **"Close on finish"** option
-
-You can also launch this dialog directly from the CLI:
-```powershell
-python main.py 7z-unzip "C:\Downloads\HugeGame.zip"
-```
+*(To show directly on Windows 11 top-level menu without clicking "Show more options", pass `--classic-menu`)*
 
 ---
 
-Simply double-click or run:
-```bash
-python main.py
-```
+## 🚀 High-Performance Engine Under The Hood
 
-- **Live Partition Tracking**: Displays the current part number and size freed.
-- **Space Reclaimed Meter**: Real-time counter showing megabytes/gigabytes freed back to Windows.
-- **Responsive Threading**: Extraction runs on background threads, ensuring the UI remains smooth even during multi-hour 100 GB game unpacks.
+Without cluttering the clean, minimal UI, Unziper includes enterprise-grade optimizations:
+
+- **Dynamic I/O Scaling (up to 16MB buffers)**: Adapts read/write buffer sizes dynamically from 64KB for small scripts up to 16MB for multi-gigabyte game binaries, maximizing NVMe/SSD sustained bus throughput.
+- **Physical NTFS Pre-allocation**: Pre-allocates contiguous disk clusters upfront before writing, eliminating file fragmentation and significantly speeding up subsequent game loading times.
+- **Hardware-Accelerated CRC32 Verification**: Computes running CRC32 checksums in native C speed during decompression to guarantee 100% bit-for-bit file integrity before any archive truncation occurs.
+- **Smart Crash Resume**: If an extraction of a massive 100GB game is interrupted (due to power loss, sleep, or cancellation), Unziper verifies already extracted files in seconds and resumes right where it left off.
+- **Windows Reserved Path Protection**: Sanitizes DOS-inherited reserved names (`CON`, `PRN`, `AUX`, `NUL`, `COM1-9`, `LPT1-9`, trailing dots/spaces) to prevent Windows filesystem locks and path traversal vulnerabilities.
+- **Zero 2X Space**: Truncates archive in-place as files are written and leverages Windows NTFS cluster deallocation (`FSCTL_SET_ZERO_DATA`).
+
+---
+
+## 🖥️ Minimal Native Windows UI
+
+- Pure native Windows controls (`vista` style theme) with zero AI banners or clutter.
+- Clean 3-step wizard: **Select $\rightarrow$ Extracting $\rightarrow$ Finished**.
+- Shows a prominent **"Finish"** button (and **"Open Folder"**) when done, just like standard Windows installers.
+
 
 ---
 

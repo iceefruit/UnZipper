@@ -107,6 +107,34 @@ class TestUnziper(unittest.TestCase):
             restored_file = os.path.join(dest_dir, f"file_{i}.dat")
             self.assertTrue(os.path.isfile(restored_file))
 
+    def test_smart_resume(self):
+        zip_path = os.path.join(self.temp_dir, "resume.zip")
+        dest_dir = os.path.join(self.temp_dir, "resume_out")
+        os.makedirs(dest_dir, exist_ok=True)
+
+        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("file_a.bin", b"Data A " * 1000)
+            zf.writestr("file_b.bin", b"Data B " * 2000)
+
+        # Pre-extract file_b manually to simulate a resumed session
+        b_data = b"Data B " * 2000
+        with open(os.path.join(dest_dir, "file_b.bin"), "wb") as f:
+            f.write(b_data)
+
+        extractor = InPlaceExtractor(zip_path, dest_dir, resume=True)
+        res = extractor.extract()
+        self.assertEqual(res["status"], "completed")
+        self.assertEqual(res["files_completed"], 2)
+        self.assertTrue(os.path.isfile(os.path.join(dest_dir, "file_a.bin")))
+        self.assertTrue(os.path.isfile(os.path.join(dest_dir, "file_b.bin")))
+        self.assertFalse(os.path.exists(zip_path))
+
+    def test_path_sanitization_and_reserved_names(self):
+        from unziper.utils import sanitize_rel_path
+        self.assertEqual(sanitize_rel_path("con.txt"), "_con.txt")
+        self.assertEqual(sanitize_rel_path("sub/nul.dat"), os.path.join("sub", "_nul.dat"))
+        self.assertEqual(sanitize_rel_path("folder.../test.txt   "), os.path.join("folder", "test.txt"))
+
 
 if __name__ == "__main__":
     unittest.main()

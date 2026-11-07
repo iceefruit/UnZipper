@@ -5,7 +5,14 @@ import shutil
 import zipfile
 from typing import Callable, List, Optional
 from dataclasses import dataclass
-from .utils import is_safe_path, format_bytes, calculate_optimal_chunk_size_mb
+from .utils import (
+    is_safe_path,
+    format_bytes,
+    calculate_optimal_chunk_size_mb,
+    sanitize_rel_path,
+    get_dynamic_chunk_buffer_size,
+    preallocate_file,
+)
 
 
 @dataclass
@@ -176,7 +183,10 @@ class ChunkArchiver:
             with zipfile.ZipFile(part_path, "r") as zf:
                 infolist = zf.infolist()
                 for info in infolist:
-                    target_path = os.path.join(destination_dir, info.filename)
+                    clean_rel = sanitize_rel_path(info.filename)
+                    if not clean_rel:
+                        continue
+                    target_path = os.path.join(destination_dir, clean_rel)
                     if not is_safe_path(destination_dir, target_path):
                         raise SecurityError(f"Unsafe path in archive: {info.filename}")
 
@@ -184,8 +194,30 @@ class ChunkArchiver:
                         os.makedirs(target_path, exist_ok=True)
                     else:
                         os.makedirs(os.path.dirname(target_path), exist_ok=True)
-                        with zf.open(info) as src, open(target_path, "wb") as dst:
-                            shutil.copyfileobj(src, dst)
+                        temp_target = target_path + ".unziptmp"
+                        chunk_buffer = get_dynamic_chunk_buffer_size(info.file_size)
+
+                        with zf.open(info) as src, open(temp_target, "wb") as dst:
+                            preallocate_file(dst, info.file_size)
+                            while True:
+                                buf = src.read(chunk_buffer)
+                                if not buf:
+                                    break
+                                dst.write(buf)
+
+                        if os.path.exists(target_path):
+                            os.remove(target_path)
+                        os.replace(temp_target, target_path)
+
+                        try:
+                            import time
+                            dt = info.date_time
+                            time_tuple = (dt[0], dt[1], dt[2], dt[3], dt[4], dt[5], 0, 0, -1)
+                            mtime = time.mktime(time_tuple)
+                            os.utime(target_path, (mtime, mtime))
+                        except Exception:
+                            pass
+
                         total_bytes_extracted += info.file_size
 
             # Part extracted successfully -> Delete it immediately to reclaim space!

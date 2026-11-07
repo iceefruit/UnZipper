@@ -152,15 +152,33 @@ class UnziperApp:
         btn_browse_out = ttk.Button(out_frame, text="Save As...", command=self._browse_create_out)
         btn_browse_out.pack(side=tk.RIGHT)
 
-        opts_frame = ttk.LabelFrame(self.tab_create, text="Part Options", padding=10)
+        opts_frame = ttk.LabelFrame(self.tab_create, text="Part Sizing Options (WiFi & Disk Optimization)", padding=10)
         opts_frame.pack(fill=tk.X, pady=(0, 15))
 
-        ttk.Label(opts_frame, text="Maximum Part Size (MB):").pack(side=tk.LEFT, padx=(0, 8))
-        self.chunk_size_var = tk.StringVar(value="1000")
-        entry_chunk = ttk.Entry(opts_frame, textvariable=self.chunk_size_var, width=10)
-        entry_chunk.pack(side=tk.LEFT)
+        ttk.Label(opts_frame, text="Part Sizing Preset:").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.chunk_preset_var = tk.StringVar(value="auto")
 
-        self.lbl_create_status = ttk.Label(self.tab_create, text="Divides into parts that auto-delete when unzipped so 2X space is never needed.", font=("Segoe UI", 9))
+        preset_combo = ttk.Combobox(
+            opts_frame,
+            textvariable=self.chunk_preset_var,
+            values=[
+                "auto - Smart Adaptive (Auto 500MB-1GB)",
+                "1024 - 1 GB (Best for 1 Gbps WiFi & 50GB+ Games)",
+                "500 - 500 MB (Best for 100-300 Mbps WiFi)",
+                "250 - 250 MB (Moderate speed / limited disk)",
+                "100 - 100 MB (Low disk space buffer)",
+            ],
+            state="readonly",
+            width=45,
+        )
+        preset_combo.grid(row=0, column=1, sticky="w", pady=4)
+
+        self.lbl_create_status = ttk.Label(
+            self.tab_create,
+            text="Divides game into parts that auto-delete on extract. 1GB parts achieve peak 1 Gbps WiFi throughput without file clutter.",
+            font=("Segoe UI", 9),
+            wraplength=600,
+        )
         self.lbl_create_status.pack(anchor="w", pady=(0, 10))
 
         self.btn_create_parts = ttk.Button(
@@ -301,13 +319,14 @@ class UnziperApp:
             messagebox.showerror("Error", "Please choose an output prefix.")
             return
 
-        try:
-            chunk_mb = int(self.chunk_size_var.get().strip())
-            if chunk_mb <= 0:
-                raise ValueError()
-        except ValueError:
-            messagebox.showerror("Error", "Chunk size must be a positive integer in MB.")
-            return
+        selected = self.chunk_preset_var.get().strip().split()[0]
+        if selected == "auto":
+            chunk_mb = 0
+        else:
+            try:
+                chunk_mb = int(selected)
+            except ValueError:
+                chunk_mb = 0
 
         self.btn_create_parts.config(state=tk.DISABLED)
 

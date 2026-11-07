@@ -5,7 +5,7 @@ import shutil
 import zipfile
 from typing import Callable, List, Optional
 from dataclasses import dataclass
-from .utils import is_safe_path, format_bytes
+from .utils import is_safe_path, format_bytes, calculate_optimal_chunk_size_mb
 
 
 @dataclass
@@ -32,30 +32,36 @@ class ChunkArchiver:
     def create_chunked_archive(
         source_dir: str,
         output_prefix: str,
-        chunk_size_mb: int = 500,
+        chunk_size_mb: int = 0,
         compression: int = zipfile.ZIP_DEFLATED,
         compresslevel: int = 6,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
     ) -> List[str]:
         """
-        Compresses source_dir into multiple independent zip parts (output_prefix.part001.zip, etc.)
+        Compresses source_dir into multiple independent zip parts (output_prefix.part0001.zip, etc.)
         so each can be extracted and deleted sequentially.
+        If chunk_size_mb is 0 or negative, automatically calculates the optimal chunk size.
         """
         source_dir = os.path.abspath(source_dir)
         if not os.path.isdir(source_dir):
             raise NotADirectoryError(f"Source is not a directory: {source_dir}")
 
-        chunk_size_bytes = chunk_size_mb * 1024 * 1024
-        part_files: List[str] = []
-
         # Gather all files in source_dir
         all_entries = []
+        total_source_bytes = 0
         for root, _, files in os.walk(source_dir):
             for f in files:
                 full_path = os.path.join(root, f)
                 rel_path = os.path.relpath(full_path, source_dir)
                 size = os.path.getsize(full_path)
                 all_entries.append((full_path, rel_path, size))
+                total_source_bytes += size
+
+        if chunk_size_mb <= 0:
+            chunk_size_mb = calculate_optimal_chunk_size_mb(total_source_bytes)
+
+        chunk_size_bytes = chunk_size_mb * 1024 * 1024
+        part_files: List[str] = []
 
         part_num = 1
         current_chunk_size = 0

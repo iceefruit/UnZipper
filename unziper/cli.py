@@ -76,13 +76,14 @@ def cli_extract_inplace(
         sys.exit(1)
 
 
-def cli_create_chunks(source_dir: str, output_prefix: str, chunk_size_mb: int):
+def cli_create_chunks(source_dir: str, output_prefix: str, chunk_size_mb: int = 0):
     print(f"\n==================================================================")
     print(f"  Unziper: Create Multi-Part Zero-Waste Archive")
     print(f"==================================================================")
     print(f"Source Folder:  {source_dir}")
     print(f"Output Prefix:  {output_prefix}")
-    print(f"Chunk Target:   {chunk_size_mb} MB per part")
+    target_str = f"{chunk_size_mb} MB per part" if chunk_size_mb > 0 else "Auto-Optimized (smart WiFi/disk balance)"
+    print(f"Chunk Target:   {target_str}")
     print(f"------------------------------------------------------------------")
 
     def on_progress(rel_path, current_idx, total_files):
@@ -167,7 +168,7 @@ def main():
     p_pack = subparsers.add_parser("pack-parts", help="Compress a game folder into self-deleting multi-parts")
     p_pack.add_argument("source", help="Source folder to compress")
     p_pack.add_argument("output", help="Output archive prefix (e.g. game_backup)")
-    p_pack.add_argument("-s", "--chunk-size", type=int, default=500, help="Part size in MB (default: 500)")
+    p_pack.add_argument("-s", "--chunk-size", type=int, default=0, help="Part size in MB (0 for smart auto-sizing e.g. 500MB-1GB, default: 0)")
 
     # Split-unzip extractor
     p_unpack = subparsers.add_parser("unpack-parts", help="Extract and auto-delete multi-part archive chunks")

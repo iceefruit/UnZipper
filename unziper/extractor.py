@@ -1,6 +1,7 @@
 import os
 import shutil
 import zipfile
+import threading
 from typing import Callable, Optional, List
 from dataclasses import dataclass
 from .utils import is_safe_path, format_bytes
@@ -51,10 +52,21 @@ class InPlaceExtractor:
         self.num_parts = max(1, num_parts)
         self.enable_sparse = enable_sparse
         self._cancelled = False
+        self._pause_event = threading.Event()
+        self._pause_event.set()
 
     def cancel(self):
         """Signal extraction to halt after the current file."""
         self._cancelled = True
+        self._pause_event.set()
+
+    def pause(self):
+        """Pause extraction temporarily."""
+        self._pause_event.clear()
+
+    def resume(self):
+        """Resume paused extraction."""
+        self._pause_event.set()
 
     def extract(
         self,
@@ -125,6 +137,7 @@ class InPlaceExtractor:
             last_zip_size = initial_archive_size
 
             for idx, info in enumerate(files):
+                self._pause_event.wait()
                 if self._cancelled:
                     zf.close()
                     if sparse_handler:
@@ -148,6 +161,7 @@ class InPlaceExtractor:
                 try:
                     with zf.open(info) as src, open(temp_target, "wb") as dst:
                         while True:
+                            self._pause_event.wait()
                             buf = src.read(chunk_size)
                             if not buf:
                                 break

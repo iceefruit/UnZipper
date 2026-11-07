@@ -44,7 +44,37 @@ python main.py unpack-parts "MyGameBackup.part0001.zip" -d "C:\Games\RestoredGam
 
 ---
 
-## 🖥️ Graphical User Interface (GUI)
+## 🗂️ 7-Zip Style Windows Integration
+
+Unziper integrates seamlessly with Windows Explorer just like 7-Zip, featuring both a right-click context menu and the iconic 7-Zip progress modal.
+
+### 1. One-Click Right-Click Context Menu
+Run this once to add Unziper directly to your Windows Explorer context menu (no admin rights needed):
+```powershell
+python register_context_menu.py
+```
+*(To remove it later, run `python register_context_menu.py --remove`)*
+
+Now, right-clicking on any `.zip` or game archive gives you:
+- **Extract with Unziper (Zero-Waste)** $\rightarrow$ extracts to `<ArchiveName>\`
+- **Extract Here (Unziper Zero-Waste)** $\rightarrow$ extracts directly to the current directory
+- Right-clicking any folder gives: **Unziper: Compress to Self-Deleting Parts**
+
+### 2. 7-Zip Style Progress Dialog
+When extraction starts, a compact, clean window appears showing:
+- **Elapsed Time & Remaining ETA**
+- **Transfer Speed (MB/s)**
+- **Files Processed Counter**
+- **Live Reclaimed Space Counter** (watch your disk space get freed in real-time)
+- **Background**, **Pause / Resume**, and **Cancel** controls
+- **"Close on finish"** option
+
+You can also launch this dialog directly from the CLI:
+```powershell
+python main.py 7z-unzip "C:\Downloads\HugeGame.zip"
+```
+
+---
 
 Simply double-click or run:
 ```bash

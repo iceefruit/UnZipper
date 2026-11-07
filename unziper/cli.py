@@ -163,6 +163,13 @@ def main():
     p_unzip.add_argument("-d", "--dest", help="Destination folder (defaults to folder named after archive)")
     p_unzip.add_argument("--parts", type=int, default=10, help="Divide archive into N logical parts/milestones (default: 10)")
     p_unzip.add_argument("-p", "--password", help="Archive password if encrypted")
+    p_unzip.add_argument("--dialog", action="store_true", help="Display 7-Zip style extraction progress window")
+
+    # 7-Zip style dialog shortcut (used by context menu)
+    p_7z = subparsers.add_parser("7z-unzip", help="Launch 7-Zip style extraction progress window directly")
+    p_7z.add_argument("archive", help="Path to archive")
+    p_7z.add_argument("-d", "--dest", help="Destination directory")
+    p_7z.add_argument("--here", action="store_true", help="Extract to current directory")
 
     # Split-zip creator
     p_pack = subparsers.add_parser("pack-parts", help="Compress a game folder into self-deleting multi-parts")
@@ -185,7 +192,17 @@ def main():
     args = parser.parse_args()
 
     if args.command == "unzip":
-        cli_extract_inplace(args.archive, args.dest, args.password, num_parts=args.parts)
+        if args.dialog:
+            from .dialog import show_7zip_dialog
+            show_7zip_dialog(args.archive, args.dest)
+        else:
+            cli_extract_inplace(args.archive, args.dest, args.password, num_parts=args.parts)
+    elif args.command == "7z-unzip":
+        from .dialog import show_7zip_dialog
+        dest = args.dest
+        if args.here:
+            dest = os.path.dirname(os.path.abspath(args.archive))
+        show_7zip_dialog(args.archive, dest)
     elif args.command == "pack-parts":
         cli_create_chunks(args.source, args.output, args.chunk_size)
     elif args.command == "unpack-parts":

@@ -189,6 +189,12 @@ def main():
         launch_gui()
         return
 
+    # If first argument is an existing file or path (e.g. dragged onto exe or from right-click)
+    if len(sys.argv) == 2 and os.path.isfile(sys.argv[1]):
+        from .gui import launch_gui
+        launch_gui(sys.argv[1])
+        return
+
     args = parser.parse_args()
 
     if args.command == "unzip":

@@ -32,10 +32,13 @@ class SevenZipExtractionDialog:
         self._center_window()
 
         self.style = ttk.Style()
-        try:
-            self.style.theme_use("clam")
-        except Exception:
-            pass
+        for theme in ["vista", "xpnative", "winnative"]:
+            if theme in self.style.theme_names():
+                try:
+                    self.style.theme_use(theme)
+                    break
+                except Exception:
+                    pass
 
         self.extractor: Optional[InPlaceExtractor] = None
         self.start_time = 0.0
@@ -44,7 +47,7 @@ class SevenZipExtractionDialog:
         self.current_speed = 0.0
         self.is_paused = False
         self.is_completed = False
-        self.auto_close_var = tk.BooleanVar(value=True)
+        self.dest_folder_resolved = ""
 
         self._build_ui(archive_name)
 
@@ -114,12 +117,15 @@ class SevenZipExtractionDialog:
         self.val_current_file = ttk.Label(stats_frame, text="Initializing...", font=("Segoe UI", 8), wraplength=340)
         self.val_current_file.grid(row=3, column=1, columnspan=3, sticky="w", padx=6, pady=(4, 0))
 
-        # Bottom Bar: Auto close checkbox & Buttons
+        # Bottom Bar: Buttons
         bottom_frame = ttk.Frame(self.root, padding="12 4 12 10")
         bottom_frame.pack(fill=tk.X, side=tk.BOTTOM)
 
-        chk_autoclose = ttk.Checkbutton(bottom_frame, text="Close on finish", variable=self.auto_close_var)
-        chk_autoclose.pack(side=tk.LEFT)
+        self.btn_open_folder = ttk.Button(
+            bottom_frame,
+            text="Open Folder",
+            command=self._open_folder_action,
+        )
 
         btn_box = ttk.Frame(bottom_frame)
         btn_box.pack(side=tk.RIGHT)
@@ -132,6 +138,11 @@ class SevenZipExtractionDialog:
 
         self.btn_cancel = ttk.Button(btn_box, text="Cancel", width=9, command=self._cancel)
         self.btn_cancel.pack(side=tk.LEFT, padx=3)
+
+    def _open_folder_action(self):
+        target = self.dest_folder_resolved or self.destination_dir or os.path.dirname(self.archive_path)
+        if os.path.isdir(target):
+            os.startfile(target)
 
     def _format_time(self, seconds: float) -> str:
         if seconds < 0 or seconds > 360000:
@@ -232,16 +243,24 @@ class SevenZipExtractionDialog:
                 res = self.extractor.extract(progress_callback=on_prog)
 
             self.is_completed = True
+            dest_dir = self.extractor.destination_dir if self.extractor else (self.destination_dir or os.path.dirname(self.archive_path))
+            self.dest_folder_resolved = dest_dir
 
             def on_finish():
                 self.progress_var.set(100.0)
                 self.lbl_percent.config(text="100%")
-                self.val_current_file.config(text="Extraction completed! Archive deleted to free space.")
-                self.btn_cancel.config(text="Close")
-                self.btn_pause.config(state=tk.DISABLED)
+                self.root.title("Finished - Unziper")
+                self.lbl_headline.config(text=f"Finished: {os.path.basename(self.archive_path)}")
+                self.val_remaining.config(text="00:00:00")
+                self.val_speed.config(text="Complete")
+                self.val_current_file.config(text=f"Finished! Extracted to: {dest_dir}")
 
-                if self.auto_close_var.get():
-                    self.root.after(400, self.root.destroy)
+                # Update buttons to clean Finished state
+                self.btn_bg.pack_forget()
+                self.btn_pause.pack_forget()
+                self.btn_open_folder.pack(side=tk.LEFT)
+                self.btn_cancel.config(text="Finish", command=self.root.destroy)
+                self.btn_cancel.focus_set()
 
             self.root.after(0, on_finish)
 

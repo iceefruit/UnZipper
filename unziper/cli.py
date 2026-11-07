@@ -1,0 +1,180 @@
+import os
+import sys
+import argparse
+from typing import Optional
+from .extractor import InPlaceExtractor, ExtractionProgress
+from .chunker import ChunkArchiver, ChunkProgress
+from .utils import format_bytes, get_free_disk_space
+
+
+def render_progress_bar(percent: float, length: int = 30) -> str:
+    filled = int(length * percent / 100.0)
+    bar = "=" * filled + "-" * (length - filled)
+    return f"[{bar}] {percent:5.1f}%"
+
+
+def cli_extract_inplace(archive_path: str, dest_dir: Optional[str], password: Optional[str] = None):
+    print(f"\n=======================================================")
+    print(f"  Unziper: Zero-Waste In-Place Reverse Extractor")
+    print(f"=======================================================")
+    print(f"Archive:       {archive_path}")
+    orig_size = os.path.getsize(archive_path)
+    print(f"Archive Size:  {format_bytes(orig_size)}")
+    
+    extractor = InPlaceExtractor(archive_path, dest_dir)
+    print(f"Destination:   {extractor.destination_dir}")
+    print(f"Available:     {format_bytes(get_free_disk_space(extractor.destination_dir))}")
+    print(f"-------------------------------------------------------")
+    print(f"Extracting in reverse order and truncating archive in-place...")
+    print(f"No 2x disk space needed - archive will shrink to 0 B!\n")
+
+    def on_progress(p: ExtractionProgress):
+        pbar = render_progress_bar(p.percent_done)
+        truncated_name = p.current_file if len(p.current_file) <= 30 else "..." + p.current_file[-27:]
+        msg = (
+            f"\r{pbar} | {p.files_completed}/{p.total_files} files "
+            f"| Freed: {format_bytes(p.space_reclaimed_bytes)} "
+            f"| Zip: {format_bytes(p.archive_size_bytes)} "
+            f"| {truncated_name:<30}"
+        )
+        sys.stdout.write(msg)
+        sys.stdout.flush()
+
+    try:
+        result = extractor.extract(progress_callback=on_progress, password=password)
+        print("\n\n" + "=" * 55)
+        if result.get("status") == "completed":
+            print(f"[SUCCESS] Extraction completed successfully!")
+            print(f"Files Extracted:   {result['files_completed']} files")
+            print(f"Uncompressed:      {format_bytes(result['bytes_extracted'])}")
+            print(f"Total Space Freed: {format_bytes(result['space_reclaimed'])} (Archive deleted)")
+            print(f"Output Location:   {result['destination']}")
+        else:
+            print(f"[CANCELLED] Extraction stopped early.")
+        print("=" * 55 + "\n")
+    except KeyboardInterrupt:
+        print("\n\n[WARNING] Process interrupted by user.")
+        extractor.cancel()
+    except Exception as e:
+        print(f"\n\n[ERROR] Extraction failed: {e}")
+        sys.exit(1)
+
+
+def cli_create_chunks(source_dir: str, output_prefix: str, chunk_size_mb: int):
+    print(f"\n=======================================================")
+    print(f"  Unziper: Create Multi-Part Zero-Waste Archive")
+    print(f"=======================================================")
+    print(f"Source Folder:  {source_dir}")
+    print(f"Output Base:    {output_prefix}")
+    print(f"Chunk Target:   {chunk_size_mb} MB per part")
+    print(f"-------------------------------------------------------")
+
+    def on_progress(rel_path, current_idx, total_files):
+        pbar = render_progress_bar((current_idx / total_files) * 100.0)
+        disp_name = rel_path if len(rel_path) <= 35 else "..." + rel_path[-32:]
+        sys.stdout.write(f"\r{pbar} | Packing {current_idx}/{total_files} | {disp_name:<35}")
+        sys.stdout.flush()
+
+    try:
+        parts = ChunkArchiver.create_chunked_archive(
+            source_dir=source_dir,
+            output_prefix=output_prefix,
+            chunk_size_mb=chunk_size_mb,
+            progress_callback=on_progress,
+        )
+        print("\n\n" + "=" * 55)
+        print(f"[SUCCESS] Successfully created {len(parts)} part archives:")
+        total_size = 0
+        for p in parts:
+            sz = os.path.getsize(p)
+            total_size += sz
+            print(f"  - {os.path.basename(p)} ({format_bytes(sz)})")
+        print(f"Total Compressed Size: {format_bytes(total_size)}")
+        print("=" * 55 + "\n")
+    except Exception as e:
+        print(f"\n\n[ERROR] Archiving failed: {e}")
+        sys.exit(1)
+
+
+def cli_extract_chunks(part_path: str, dest_dir: str, auto_delete: bool = True):
+    print(f"\n=======================================================")
+    print(f"  Unziper: Multi-Part Sequential Auto-Delete Extractor")
+    print(f"=======================================================")
+    parts = ChunkArchiver.find_all_parts(part_path)
+    if not parts:
+        print(f"[ERROR] No matching parts found for: {part_path}")
+        sys.exit(1)
+
+    print(f"Found {len(parts)} parts.")
+    print(f"Destination:  {dest_dir}")
+    print(f"Auto-Delete:  {'ENABLED (Parts deleted as unzipped)' if auto_delete else 'DISABLED'}")
+    print(f"-------------------------------------------------------")
+
+    def on_progress(p: ChunkProgress):
+        pbar = render_progress_bar(p.percent_done)
+        print(f"{pbar} Part {p.part_index}/{p.total_parts}: {p.message}")
+
+    try:
+        result = ChunkArchiver.extract_and_delete_parts(
+            parts=parts,
+            destination_dir=dest_dir,
+            auto_delete=auto_delete,
+            progress_callback=on_progress,
+        )
+        print("\n" + "=" * 55)
+        print(f"[SUCCESS] Multi-part extraction completed!")
+        print(f"Parts Processed:   {result['total_parts']}")
+        print(f"Parts Deleted:     {result['parts_deleted']}")
+        print(f"Total Extracted:   {format_bytes(result['total_bytes_extracted'])}")
+        print(f"Destination:       {result['destination']}")
+        print("=" * 55 + "\n")
+    except Exception as e:
+        print(f"\n[ERROR] Multi-part extraction failed: {e}")
+        sys.exit(1)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="unziper",
+        description="Unziper: Zero-Waste Archive Tool (Never waste 2x disk space unzipping)",
+    )
+    subparsers = parser.add_subparsers(dest="command", help="Subcommand to execute")
+
+    # In-place unzipper
+    p_unzip = subparsers.add_parser("unzip", help="Unzip an archive in-place, shrinking it continuously")
+    p_unzip.add_argument("archive", help="Path to the .zip archive")
+    p_unzip.add_argument("-d", "--dest", help="Destination folder (defaults to folder named after archive)")
+    p_unzip.add_argument("-p", "--password", help="Archive password if encrypted")
+
+    # Split-zip creator
+    p_pack = subparsers.add_parser("pack-parts", help="Compress a directory into self-deleting multi-parts")
+    p_pack.add_argument("source", help="Source folder to compress")
+    p_pack.add_argument("output", help="Output archive prefix (e.g. backup)")
+    p_pack.add_argument("-s", "--chunk-size", type=int, default=500, help="Part size in MB (default: 500)")
+
+    # Split-unzip extractor
+    p_unpack = subparsers.add_parser("unpack-parts", help="Extract and auto-delete multi-part archive chunks")
+    p_unpack.add_argument("first_part", help="Path to the first part or any part (.part0001.zip)")
+    p_unpack.add_argument("-d", "--dest", required=True, help="Destination directory")
+    p_unpack.add_argument("--keep", action="store_true", help="Keep part files instead of auto-deleting them")
+
+    if len(sys.argv) == 1:
+        # No arguments: launch GUI if available, or print help
+        from .gui import launch_gui
+        launch_gui()
+        return
+
+    args = parser.parse_args()
+
+    if args.command == "unzip":
+        cli_extract_inplace(args.archive, args.dest, args.password)
+    elif args.command == "pack-parts":
+        cli_create_chunks(args.source, args.output, args.chunk_size)
+    elif args.command == "unpack-parts":
+        cli_extract_chunks(args.first_part, args.dest, auto_delete=not args.keep)
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()

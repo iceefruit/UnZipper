@@ -2,3 +2,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.unziptmp
+build/
+dist/
+*.spec

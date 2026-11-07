@@ -58,12 +58,15 @@ class UnziperApp:
 
         self.tab_extract = ttk.Frame(self.notebook, padding=12)
         self.tab_create = ttk.Frame(self.notebook, padding=12)
+        self.tab_settings = ttk.Frame(self.notebook, padding=12)
 
         self.notebook.add(self.tab_extract, text=" Extract Game / Archive ")
         self.notebook.add(self.tab_create, text=" Compress Folder to Parts ")
+        self.notebook.add(self.tab_settings, text=" Explorer Context Menu ")
 
         self._setup_extract_tab()
         self._setup_create_tab()
+        self._setup_settings_tab()
 
     def _setup_extract_tab(self):
         # File selector
@@ -187,6 +190,69 @@ class UnziperApp:
             command=self._start_create_parts,
         )
         self.btn_create_parts.pack(fill=tk.X, side=tk.BOTTOM, pady=5)
+
+    def _setup_settings_tab(self):
+        f = ttk.LabelFrame(self.tab_settings, text="Windows Explorer Right-Click Menu (7-Zip Style)", padding=15)
+        f.pack(fill=tk.BOTH, expand=True, pady=10)
+
+        lbl = ttk.Label(
+            f,
+            text=(
+                "Integrate Unziper directly into your Windows Explorer context menu.\n\n"
+                "Once installed, you can simply right-click any .zip or game archive and select:\n"
+                "  • 'Extract with Unziper (Zero-Waste)'\n"
+                "  • 'Extract Here (Unziper Zero-Waste)'\n\n"
+                "No administrator privileges are required."
+            ),
+            font=("Segoe UI", 9),
+            justify="left",
+            wraplength=550,
+        )
+        lbl.pack(anchor="w", pady=(0, 20))
+
+        btn_box = ttk.Frame(f)
+        btn_box.pack(fill=tk.X, pady=10)
+
+        btn_install = ttk.Button(
+            btn_box,
+            text="✔ Install Right-Click Menu",
+            command=self._install_context_menu,
+        )
+        btn_install.pack(side=tk.LEFT, padx=(0, 10))
+
+        btn_uninstall = ttk.Button(
+            btn_box,
+            text="✖ Remove from Right-Click Menu",
+            command=self._uninstall_context_menu,
+        )
+        btn_uninstall.pack(side=tk.LEFT)
+
+        self.lbl_integration_status = ttk.Label(
+            f,
+            text="",
+            font=("Segoe UI", 9, "bold"),
+            foreground="#059669",
+        )
+        self.lbl_integration_status.pack(anchor="w", pady=(15, 0))
+
+    def _install_context_menu(self):
+        try:
+            from register_context_menu import register_shell
+            ok = register_shell()
+            if ok:
+                self.lbl_integration_status.config(text="Context menu installed successfully! Right-click any .zip file to try.")
+                messagebox.showinfo("Success", "Unziper has been added to your Windows Explorer right-click menu!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to register context menu: {e}")
+
+    def _uninstall_context_menu(self):
+        try:
+            from register_context_menu import unregister_shell
+            unregister_shell()
+            self.lbl_integration_status.config(text="Context menu removed successfully.")
+            messagebox.showinfo("Removed", "Unziper context menu entries have been removed.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to remove context menu: {e}")
 
     def _browse_archive(self):
         path = filedialog.askopenfilename(

@@ -20,20 +20,38 @@ def get_python_exe() -> str:
     return sys.executable
 
 
-def register_shell():
-    python_exe = get_python_exe()
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    main_py = os.path.join(script_dir, "main.py")
+def is_frozen() -> bool:
+    return getattr(sys, "frozen", False)
 
-    if not os.path.isfile(main_py):
-        print(f"[ERROR] Could not find main.py at {main_py}")
-        return False
+
+def get_command_templates():
+    if is_frozen():
+        exe_path = sys.executable
+        return (
+            exe_path,
+            f'"{exe_path}" 7z-unzip "%1"',
+            f'"{exe_path}" 7z-unzip "%1" --here',
+            f'"{exe_path}" pack-parts "%1" "%1_parts"',
+        )
+    else:
+        python_exe = get_python_exe()
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        main_py = os.path.join(script_dir, "main.py")
+        return (
+            python_exe,
+            f'"{python_exe}" "{main_py}" 7z-unzip "%1"',
+            f'"{python_exe}" "{main_py}" 7z-unzip "%1" --here',
+            f'"{python_exe}" "{main_py}" pack-parts "%1" "%1_parts"',
+        )
+
+
+def register_shell() -> bool:
+    icon_exe, cmd_extract, cmd_extract_here, cmd_pack = get_command_templates()
 
     print("==============================================================")
     print("  Registering Unziper in Windows Right-Click Context Menu")
     print("==============================================================")
-    print(f"Python Launcher: {python_exe}")
-    print(f"Target Script:   {main_py}")
+    print(f"Target Binary: {icon_exe}")
     print("--------------------------------------------------------------")
 
     # 1. Right click on .zip files -> "Extract with Unziper (Zero-Waste)"
@@ -43,29 +61,27 @@ def register_shell():
         (
             rf"{zip_shell_base}\UnziperExtract",
             "Extract with Unziper (Zero-Waste)",
-            f'"{python_exe}" "{main_py}" 7z-unzip "%1"',
+            cmd_extract,
         ),
         (
             rf"{zip_shell_base}\UnziperExtractHere",
             "Extract Here (Unziper Zero-Waste)",
-            f'"{python_exe}" "{main_py}" 7z-unzip "%1" --here',
+            cmd_extract_here,
         ),
         (
             r"Software\Classes\Directory\shell\UnziperPack",
             "Unziper: Compress to Self-Deleting Parts",
-            f'"{python_exe}" "{main_py}" pack-parts "%1" "%1_parts"',
+            cmd_pack,
         ),
     ]
 
+    success = True
     for key_path, menu_title, command_str in entries:
         try:
-            # Create shell item key
             with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as k:
                 winreg.SetValueEx(k, "", 0, winreg.REG_SZ, menu_title)
-                # Set icon if python.exe or shell icon
-                winreg.SetValueEx(k, "Icon", 0, winreg.REG_SZ, f'"{python_exe}",0')
+                winreg.SetValueEx(k, "Icon", 0, winreg.REG_SZ, f'"{icon_exe}",0')
 
-            # Create command subkey
             cmd_path = rf"{key_path}\command"
             with winreg.CreateKey(winreg.HKEY_CURRENT_USER, cmd_path) as k:
                 winreg.SetValueEx(k, "", 0, winreg.REG_SZ, command_str)
@@ -73,12 +89,14 @@ def register_shell():
             print(f"[OK] Registered: '{menu_title}'")
         except Exception as e:
             print(f"[FAIL] Error registering {key_path}: {e}")
+            success = False
 
     print("--------------------------------------------------------------")
-    print("[SUCCESS] Context menu installed! Right-click any .zip file")
-    print("or game archive in File Explorer to extract with Unziper!")
+    if success:
+        print("[SUCCESS] Context menu installed! Right-click any .zip file")
+        print("or game archive in File Explorer to extract with Unziper!")
     print("==============================================================\n")
-    return True
+    return success
 
 
 def unregister_shell():

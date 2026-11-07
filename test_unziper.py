@@ -49,15 +49,20 @@ class TestUnziper(unittest.TestCase):
         self.assertGreater(initial_size, 0)
 
         shrink_sizes = []
+        parts_seen = []
 
         def on_progress(p):
             shrink_sizes.append(p.archive_size_bytes)
 
-        extractor = InPlaceExtractor(zip_path, dest_dir)
-        result = extractor.extract(progress_callback=on_progress)
+        def on_part(part_idx, total_parts, freed, msg):
+            parts_seen.append(part_idx)
+
+        extractor = InPlaceExtractor(zip_path, dest_dir, num_parts=2)
+        result = extractor.extract(progress_callback=on_progress, part_callback=on_part)
 
         self.assertEqual(result["status"], "completed")
         self.assertEqual(result["files_completed"], 3)
+        self.assertGreater(len(parts_seen), 0)
         self.assertFalse(os.path.exists(zip_path), "Archive should be deleted at end")
 
         # Verify all extracted content matches original

@@ -13,9 +13,9 @@ from .utils import format_bytes, get_free_disk_space
 class UnziperApp:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("Unziper - Zero 2X Space Extractor")
-        self.root.geometry("640x520")
-        self.root.minsize(580, 480)
+        self.root.title("Unziper - Big Game Zero-Waste Extractor")
+        self.root.geometry("680x550")
+        self.root.minsize(620, 500)
 
         # Apply modern ttk theme styling
         self.style = ttk.Style()
@@ -31,26 +31,26 @@ class UnziperApp:
 
     def _build_ui(self):
         # Header frame
-        header_frame = tk.Frame(self.root, bg="#1e293b", height=60)
+        header_frame = tk.Frame(self.root, bg="#0f172a", height=65)
         header_frame.pack(fill=tk.X, side=tk.TOP)
 
         title_label = tk.Label(
             header_frame,
             text="Unziper: Zero-Waste Extractor",
             font=("Segoe UI", 15, "bold"),
-            fg="#f8fafc",
-            bg="#1e293b",
+            fg="#38bdf8",
+            bg="#0f172a",
         )
-        title_label.pack(side=tk.LEFT, padx=16, pady=12)
+        title_label.pack(side=tk.LEFT, padx=18, pady=12)
 
         subtitle_label = tk.Label(
             header_frame,
-            text="Shrinks & deletes archive while extracting",
+            text="Divides into parts & deletes unzipped data automatically",
             font=("Segoe UI", 9),
             fg="#94a3b8",
-            bg="#1e293b",
+            bg="#0f172a",
         )
-        subtitle_label.pack(side=tk.RIGHT, padx=16, pady=16)
+        subtitle_label.pack(side=tk.RIGHT, padx=18, pady=18)
 
         # Notebook tabs
         self.notebook = ttk.Notebook(self.root)
@@ -59,15 +59,15 @@ class UnziperApp:
         self.tab_extract = ttk.Frame(self.notebook, padding=12)
         self.tab_create = ttk.Frame(self.notebook, padding=12)
 
-        self.notebook.add(self.tab_extract, text=" Extract Archive ")
-        self.notebook.add(self.tab_create, text=" Create Multi-Part Archive ")
+        self.notebook.add(self.tab_extract, text=" Extract Game / Archive ")
+        self.notebook.add(self.tab_create, text=" Compress Folder to Parts ")
 
         self._setup_extract_tab()
         self._setup_create_tab()
 
     def _setup_extract_tab(self):
         # File selector
-        file_frame = ttk.LabelFrame(self.tab_extract, text="Select Archive", padding=10)
+        file_frame = ttk.LabelFrame(self.tab_extract, text="Select Game or Archive File", padding=10)
         file_frame.pack(fill=tk.X, pady=(0, 10))
 
         self.archive_path_var = tk.StringVar()
@@ -88,8 +88,8 @@ class UnziperApp:
         btn_browse_dest = ttk.Button(dest_frame, text="Browse...", command=self._browse_dest)
         btn_browse_dest.pack(side=tk.RIGHT)
 
-        # Information Card
-        info_frame = ttk.LabelFrame(self.tab_extract, text="Space & Status Info", padding=10)
+        # Partition & Space Card
+        info_frame = ttk.LabelFrame(self.tab_extract, text="Partition & Space Tracking", padding=10)
         info_frame.pack(fill=tk.X, pady=(0, 10))
 
         self.lbl_orig_size = ttk.Label(info_frame, text="Archive Size: -", font=("Segoe UI", 9))
@@ -101,8 +101,8 @@ class UnziperApp:
         self.lbl_space_freed = ttk.Label(info_frame, text="Space Reclaimed: 0 B", font=("Segoe UI", 9, "bold"), foreground="#059669")
         self.lbl_space_freed.grid(row=1, column=0, sticky="w", padx=6, pady=2)
 
-        self.lbl_zip_remaining = ttk.Label(info_frame, text="Remaining Zip Size: -", font=("Segoe UI", 9))
-        self.lbl_zip_remaining.grid(row=1, column=1, sticky="w", padx=6, pady=2)
+        self.lbl_part_info = ttk.Label(info_frame, text="Part Progress: Waiting...", font=("Segoe UI", 9, "bold"), foreground="#2563eb")
+        self.lbl_part_info.grid(row=1, column=1, sticky="w", padx=6, pady=2)
 
         # Progress bar
         self.progress_var = tk.DoubleVar(value=0.0)
@@ -118,7 +118,7 @@ class UnziperApp:
 
         self.btn_extract = ttk.Button(
             btn_box,
-            text="Extract & Shrink (Zero 2X Space)",
+            text="Extract & Auto-Delete Unzipped Data",
             command=self._start_extraction,
         )
         self.btn_extract.pack(side=tk.LEFT, padx=(0, 8), fill=tk.X, expand=True)
@@ -132,7 +132,7 @@ class UnziperApp:
         self.btn_open_folder.pack(side=tk.RIGHT)
 
     def _setup_create_tab(self):
-        src_frame = ttk.LabelFrame(self.tab_create, text="Source Folder to Archive", padding=10)
+        src_frame = ttk.LabelFrame(self.tab_create, text="Source Folder (e.g. Game Directory)", padding=10)
         src_frame.pack(fill=tk.X, pady=(0, 10))
 
         self.create_src_var = tk.StringVar()
@@ -156,11 +156,11 @@ class UnziperApp:
         opts_frame.pack(fill=tk.X, pady=(0, 15))
 
         ttk.Label(opts_frame, text="Maximum Part Size (MB):").pack(side=tk.LEFT, padx=(0, 8))
-        self.chunk_size_var = tk.StringVar(value="500")
+        self.chunk_size_var = tk.StringVar(value="1000")
         entry_chunk = ttk.Entry(opts_frame, textvariable=self.chunk_size_var, width=10)
         entry_chunk.pack(side=tk.LEFT)
 
-        self.lbl_create_status = ttk.Label(self.tab_create, text="Creates .part0001.zip, .part0002.zip files that auto-delete on extract.", font=("Segoe UI", 9))
+        self.lbl_create_status = ttk.Label(self.tab_create, text="Divides into parts that auto-delete when unzipped so 2X space is never needed.", font=("Segoe UI", 9))
         self.lbl_create_status.pack(anchor="w", pady=(0, 10))
 
         self.btn_create_parts = ttk.Button(
@@ -172,12 +172,11 @@ class UnziperApp:
 
     def _browse_archive(self):
         path = filedialog.askopenfilename(
-            title="Select ZIP or Part Archive",
-            filetypes=[("Zip & Part Archives", "*.zip *.part*.zip"), ("All Files", "*.*")],
+            title="Select Game or ZIP Archive",
+            filetypes=[("Zip & Game Archives", "*.zip *.part*.zip"), ("All Files", "*.*")],
         )
         if path:
             self.archive_path_var.set(path)
-            # Default destination
             base_dir = os.path.dirname(path)
             file_base = os.path.splitext(os.path.basename(path))[0]
             if ".part" in file_base.lower():
@@ -187,10 +186,9 @@ class UnziperApp:
 
             sz = os.path.getsize(path)
             self.lbl_orig_size.config(text=f"Archive Size: {format_bytes(sz)}")
-            self.lbl_zip_remaining.config(text=f"Remaining Zip Size: {format_bytes(sz)}")
             free_sp = get_free_disk_space(default_dest)
             self.lbl_disk_free.config(text=f"Free Disk Space: {format_bytes(free_sp)}")
-            self.lbl_status.config(text="Ready to extract in-place.")
+            self.lbl_status.config(text="Ready. Click button to extract and delete unzipped data automatically.")
 
     def _browse_dest(self):
         d = filedialog.askdirectory(title="Select Destination Folder")
@@ -238,13 +236,13 @@ class UnziperApp:
 
     def _run_extraction_worker(self, archive: str, dest: str):
         try:
-            # Check if this is a multi-part archive
             parts = ChunkArchiver.find_all_parts(archive)
             if len(parts) > 1:
                 # Multi-part chunk mode
                 def on_chunk_prog(p: ChunkProgress):
                     def update():
                         self.progress_var.set(p.percent_done)
+                        self.lbl_part_info.config(text=f"Part {p.part_index}/{p.total_parts}")
                         self.lbl_status.config(text=p.message)
                     self.root.after(0, update)
 
@@ -255,27 +253,32 @@ class UnziperApp:
                     progress_callback=on_chunk_prog,
                 )
             else:
-                # Standard ZIP in-place reverse shrinking mode
-                extractor = InPlaceExtractor(archive, dest)
+                # In-place partition & shrink mode
+                extractor = InPlaceExtractor(archive, dest, num_parts=10)
                 self.current_extractor = extractor
 
                 def on_inplace_prog(p: ExtractionProgress):
                     def update():
                         self.progress_var.set(p.percent_done)
                         self.lbl_space_freed.config(text=f"Space Reclaimed: {format_bytes(p.space_reclaimed_bytes)}")
-                        self.lbl_zip_remaining.config(text=f"Remaining Zip Size: {format_bytes(p.archive_size_bytes)}")
+                        self.lbl_part_info.config(text=f"Part {p.current_part}/{p.total_parts}")
                         short_f = os.path.basename(p.current_file)
-                        self.lbl_status.config(text=f"Extracting ({p.files_completed}/{p.total_files}): {short_f}")
+                        self.lbl_status.config(text=f"Unzipping & Deleting ({p.files_completed}/{p.total_files}): {short_f}")
                     self.root.after(0, update)
 
-                res = extractor.extract(progress_callback=on_inplace_prog)
+                def on_part_done(part_idx, total_parts, freed_bytes, msg):
+                    def update():
+                        self.lbl_part_info.config(text=f"Part {part_idx}/{total_parts} Done (-{format_bytes(freed_bytes)})")
+                    self.root.after(0, update)
+
+                res = extractor.extract(progress_callback=on_inplace_prog, part_callback=on_part_done)
 
             def on_done():
                 self.progress_var.set(100.0)
                 self.btn_extract.config(state=tk.NORMAL)
                 self.btn_open_folder.config(state=tk.NORMAL)
-                self.lbl_status.config(text="Extraction finished! Archive deleted to save disk space.")
-                messagebox.showinfo("Success", f"Extraction completed!\nExtracted to:\n{dest}\n\nArchive deleted successfully without needing 2X space.")
+                self.lbl_status.config(text="Extraction finished! Archive completely deleted.")
+                messagebox.showinfo("Success", f"Extraction completed!\nExtracted to:\n{dest}\n\nArchive deleted automatically without needing 2X space!")
 
             self.root.after(0, on_done)
 
